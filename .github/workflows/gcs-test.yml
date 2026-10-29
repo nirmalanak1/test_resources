@@ -1,0 +1,51 @@
+name: Test GCP Automation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  create-gcs-bucket:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_BUILD_SERVICE_ACCOUNT }}
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ai-poc-500511
+
+      - name: Verify Authentication
+        run: |
+          gcloud auth list
+          gcloud config set project ai-poc-500511
+
+      - name: Create GCS Bucket
+        run: |
+          BUCKET_NAME="ai-poc-500511-gha-test-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          gcloud storage buckets create "gs://${BUCKET_NAME}" \
+            --project=ai-poc-500511 \
+            --location=asia-south1 \
+            --uniform-bucket-level-access
+
+          gcloud storage buckets describe "gs://${BUCKET_NAME}"
+
+          echo "SUCCESS: Bucket created successfully!"
